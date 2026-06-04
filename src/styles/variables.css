@@ -1,0 +1,30 @@
+:root {
+  /* 主题色 */
+  --dnd-primary-color: #1890ff;
+  --dnd-primary-color-light: rgba(24, 144, 255, 0.1);
+
+  /* 占位符 */
+  --dnd-placeholder-bg: var(--dnd-primary-color-light);
+  --dnd-placeholder-border: var(--dnd-primary-color);
+  --dnd-placeholder-height: 4px;
+  --dnd-placeholder-radius: 2px;
+
+  /* 拖拽手柄 */
+  --dnd-handle-cursor: grab;
+  --dnd-handle-cursor-active: grabbing;
+  --dnd-handle-color: #999;
+  --dnd-handle-color-hover: #666;
+
+  /* 拖拽动画 */
+  --dnd-transition-duration: 200ms;
+  --dnd-transition-easing: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 拖拽中的项 */
+  --dnd-dragging-opacity: 0.8;
+  --dnd-dragging-scale: 1.02;
+  --dnd-dragging-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* 拖拽结束回弹 */
+  --dnd-bounce-duration: 400ms;
+  --dnd-bounce-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

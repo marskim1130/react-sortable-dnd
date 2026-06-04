@@ -1,0 +1,103 @@
+@import './variables.css';
+
+/* 容器 */
+.dnd-sortable {
+  position: relative;
+}
+
+/* 拖拽项容器 */
+.dnd-sortable-item {
+  position: relative;
+  transition: transform var(--dnd-transition-duration) var(--dnd-transition-easing);
+}
+
+/* 拖拽中的项 */
+.dnd-sortable-item--dragging {
+  opacity: var(--dnd-dragging-opacity);
+  transform: scale(var(--dnd-dragging-scale));
+  box-shadow: var(--dnd-dragging-shadow);
+  z-index: 1000;
+}
+
+/* 拖拽结束回弹动画 */
+.dnd-sortable-item--bouncing {
+  animation: dnd-bounce var(--dnd-bounce-duration) var(--dnd-bounce-easing);
+}
+
+@keyframes dnd-bounce {
+  0% {
+    transform: scale(var(--dnd-dragging-scale));
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 占位符 */
+.dnd-sortable-placeholder {
+  height: 0;
+  overflow: hidden;
+  transition: height var(--dnd-transition-duration) var(--dnd-transition-easing);
+}
+
+.dnd-sortable-placeholder--visible {
+  height: var(--dnd-placeholder-height);
+}
+
+.dnd-sortable-placeholder-inner {
+  height: 100%;
+  margin: 4px 0;
+  background: var(--dnd-placeholder-bg);
+  border: 1px dashed var(--dnd-placeholder-border);
+  border-radius: var(--dnd-placeholder-radius);
+  animation: dnd-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dnd-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 拖拽手柄 */
+.dnd-handle {
+  cursor: var(--dnd-handle-cursor);
+  color: var(--dnd-handle-color);
+  user-select: none;
+  touch-action: none;
+  transition: color var(--dnd-transition-duration) var(--dnd-transition-easing);
+}
+
+.dnd-handle:hover {
+  color: var(--dnd-handle-color-hover);
+}
+
+.dnd-handle:active {
+  cursor: var(--dnd-handle-cursor-active);
+}
+
+/* 拖拽源（外部拖入） */
+.dnd-drag-source {
+  cursor: grab;
+  user-select: none;
+}
+
+.dnd-drag-source:active {
+  cursor: grabbing;
+}
+
+/* 拖拽遮罩层 */
+.dnd-sortable-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
