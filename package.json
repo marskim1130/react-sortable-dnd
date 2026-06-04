@@ -1,6 +1,10 @@
 {
-  "name": "react-sortable-dnd",
+  "name": "@qiliangjin/react-sortable-dnd",
   "version": "0.1.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "description": "零依赖、高性能的 React 拖拽排序组件库，支持容器内排序和外部拖入",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
