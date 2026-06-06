@@ -38,7 +38,10 @@
     "react-component",
     "typescript"
   ],
-  "author": "金琦亮",
+  "author": {
+    "name": "金琦亮",
+    "email": "1146232464@qq.com"
+  },
   "license": "MIT",
   "type": "module",
   "peerDependencies": {

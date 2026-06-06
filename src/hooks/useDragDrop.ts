@@ -6,6 +6,10 @@ import {
   setExternalDragData,
   setInternalDragData,
 } from '../dragData';
+import {
+  decideExternalDrop,
+  decideExternalHover,
+} from '../dropTargetDecision';
 
 export interface UseDragDropOptions<T extends DndItem> {
   /** 当前 items */
@@ -141,11 +145,6 @@ export function useDragDrop<T extends DndItem>({
       }));
     });
   }, []);
-
-  const acceptsExternalSource = useCallback(
-    (sourceType: string) => !accepts || accepts.includes(sourceType),
-    [accepts]
-  );
 
   const showExternalDragFeedback = useCallback((sourceType: string) => {
     setDragState((prev) => {
@@ -297,16 +296,20 @@ export function useDragDrop<T extends DndItem>({
       e.preventDefault();
 
       const dragData = parseDragData<T>(e.dataTransfer);
-      if (
-        dragData?.type === 'external' &&
-        !acceptsExternalSource(dragData.source.type)
-      ) {
-        updateInsertIndex(null);
-        hideExternalDragFeedback();
-        return;
-      }
 
       if (dragData?.type === 'external') {
+        const hoverDecision = decideExternalHover({
+          source: dragData.source,
+          accepts,
+          insertIndex: items.length,
+        });
+
+        if (hoverDecision.status === 'rejected') {
+          updateInsertIndex(hoverDecision.insertIndex);
+          hideExternalDragFeedback();
+          return;
+        }
+
         showExternalDragFeedback(dragData.source.type);
       }
 
@@ -318,7 +321,7 @@ export function useDragDrop<T extends DndItem>({
       }
     },
     [
-      acceptsExternalSource,
+      accepts,
       hideExternalDragFeedback,
       items.length,
       showExternalDragFeedback,
@@ -350,19 +353,27 @@ export function useDragDrop<T extends DndItem>({
       e.preventDefault();
 
       const dragData = parseDragData<T>(e.dataTransfer);
-      if (
-        dragData?.type === 'external' &&
-        !acceptsExternalSource(dragData.source.type)
-      ) {
-        e.dataTransfer.dropEffect = 'none';
-        updateInsertIndex(null);
-        hideExternalDragFeedback();
-        return;
-      }
 
       if (dragData?.type === 'external') {
-        e.dataTransfer.dropEffect = 'copy';
+        const hoverDecision = decideExternalHover({
+          source: dragData.source,
+          accepts,
+          insertIndex: null,
+        });
+
+        if (hoverDecision.status === 'rejected') {
+          e.dataTransfer.dropEffect = hoverDecision.dropEffect;
+          updateInsertIndex(hoverDecision.insertIndex);
+          hideExternalDragFeedback();
+          return;
+        }
+
+        e.dataTransfer.dropEffect = hoverDecision.dropEffect;
         showExternalDragFeedback(dragData.source.type);
+
+        const insertIndex = calculateInsertIndex(e);
+        updateInsertIndex(insertIndex);
+        return;
       } else {
         e.dataTransfer.dropEffect = isDraggingRef.current ? 'move' : 'copy';
       }
@@ -371,7 +382,7 @@ export function useDragDrop<T extends DndItem>({
       updateInsertIndex(insertIndex);
     },
     [
-      acceptsExternalSource,
+      accepts,
       calculateInsertIndex,
       hideExternalDragFeedback,
       showExternalDragFeedback,
@@ -412,27 +423,20 @@ export function useDragDrop<T extends DndItem>({
 
           onItemsChange(newItems);
         } else if (dragData.type === 'external') {
-          if (!acceptsExternalSource(dragData.source.type)) {
+          const dropDecision = decideExternalDrop({
+            source: dragData.source as DragSource<T>,
+            accepts,
+            insertIndex,
+            onDrop,
+          });
+
+          if (dropDecision.status === 'rejected') {
             resetDragInteraction();
             return;
           }
 
-          // 外部拖入
-          const source = dragData.source as DragSource<T>;
-          const newItem = onDrop
-            ? onDrop(source, insertIndex)
-            : typeof source.data?.id === 'string'
-              ? (source.data as T)
-              : null;
-
-          if (!newItem) {
-            throw new Error(
-              'DndSortable external drop requires onDrop or source.data.id'
-            );
-          }
-
           const newItems = [...items];
-          newItems.splice(insertIndex, 0, newItem);
+          newItems.splice(dropDecision.insertIndex, 0, dropDecision.item);
 
           onItemsChange(newItems);
         }
@@ -444,7 +448,7 @@ export function useDragDrop<T extends DndItem>({
         resetDragInteraction();
       }
     },
-    [acceptsExternalSource, items, onItemsChange, onDrop, resetDragInteraction]
+    [accepts, items, onItemsChange, onDrop, resetDragInteraction]
   );
 
   // 获取 item 事件处理器
