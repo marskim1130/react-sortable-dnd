@@ -9,6 +9,7 @@ export function DndSortable<T extends DndItem>({
   onItemsChange,
   renderItem,
   dragSources,
+  accepts,
   onDrop,
   disabled = false,
   className,
@@ -25,6 +26,7 @@ export function DndSortable<T extends DndItem>({
   } = useDragDrop({
     items,
     onItemsChange,
+    accepts,
     onDrop,
     disabled,
   });

@@ -38,8 +38,13 @@ export interface DndSortableProps<T extends DndItem = DndItem> {
   onItemsChange: (items: T[]) => void;
   /** 渲染单个 item */
   renderItem: (item: T, index: number) => ReactNode;
-  /** 外部拖入源配置 */
+  /**
+   * 外部拖入源配置
+   * @deprecated 请使用 DndSource 或 DndSourceList 创建外部拖入源。
+   */
   dragSources?: DragSource<T>[];
+  /** 接收的外部拖入源类型 */
+  accepts?: string[];
   /** 外部拖入回调，返回新 item */
   onDrop?: (source: DragSource<T>, index: number) => T;
   /** 是否禁用拖拽 */
@@ -58,6 +63,44 @@ export interface DndHandleProps {
   className?: string;
   /** 自定义样式 */
   style?: React.CSSProperties;
+}
+
+/** DndSource 拖拽行为属性 */
+export interface DndSourceDragProps {
+  /** 是否可拖拽 */
+  draggable: boolean;
+  /** 拖拽开始事件 */
+  onDragStart: (e: React.DragEvent) => void;
+  /** 拖拽结束事件 */
+  onDragEnd: (e: React.DragEvent) => void;
+}
+
+/** DndSource 组件属性 */
+export interface DndSourceProps<T extends DndItem = DndItem> {
+  /** 外部拖入源 */
+  source: DragSource<T>;
+  /** 是否禁用 */
+  disabled?: boolean;
+  /** 渲染自定义触发器 */
+  children: (dragProps: DndSourceDragProps) => ReactNode;
+}
+
+/** DndSourceList 组件属性 */
+export interface DndSourceListProps<T extends DndItem = DndItem> {
+  /** 外部拖入源列表 */
+  sources: DragSource<T>[];
+  /** 是否禁用 */
+  disabled?: boolean;
+  /** 自定义类名 */
+  className?: string;
+  /** 自定义样式 */
+  style?: React.CSSProperties;
+  /** 自定义渲染单个源 */
+  renderSource?: (
+    source: DragSource<T>,
+    index: number,
+    dragProps: DndSourceDragProps
+  ) => ReactNode;
 }
 
 /** 拖拽状态 */

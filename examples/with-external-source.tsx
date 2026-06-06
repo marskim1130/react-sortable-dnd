@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { DndSortable, DndItem, DragSource } from '../src';
+import {
+  DndSortable,
+  DndSource,
+  DndSourceList,
+  DndItem,
+  DragSource,
+} from '../src';
 
 // 定义 item 类型
 interface ComponentItem extends DndItem {
@@ -10,11 +16,18 @@ interface ComponentItem extends DndItem {
 
 // 拖拽源配置
 const dragSources: DragSource<ComponentItem>[] = [
-  { type: 'text', label: '文本框', icon: '📝' },
-  { type: 'image', label: '图片', icon: '🖼️' },
-  { type: 'button', label: '按钮', icon: '🔘' },
-  { type: 'divider', label: '分割线', icon: '➖' },
+  { type: 'text', label: '文本框', icon: '📝', data: { type: 'text', label: '文本框', icon: '📝' } },
+  { type: 'image', label: '图片', icon: '🖼️', data: { type: 'image', label: '图片', icon: '🖼️' } },
+  { type: 'button', label: '按钮', icon: '🔘', data: { type: 'button', label: '按钮', icon: '🔘' } },
+  { type: 'divider', label: '分割线', icon: '➖', data: { type: 'divider', label: '分割线', icon: '➖' } },
 ];
+
+const quickSource: DragSource<ComponentItem> = {
+  type: 'button',
+  label: '快速按钮',
+  icon: '⚡',
+  data: { type: 'button', label: '快速按钮', icon: '⚡' },
+};
 
 // 生成唯一 ID
 let idCounter = 0;
@@ -28,11 +41,19 @@ export function WithExternalSourceExample() {
 
   // 处理外部拖入
   const handleDrop = (source: DragSource<ComponentItem>, index: number): ComponentItem => {
+    const icon =
+      typeof source.data?.icon === 'string'
+        ? source.data.icon
+        : typeof source.icon === 'string'
+          ? source.icon
+          : '📦';
+
     return {
+      ...source.data,
       id: generateId(),
-      type: source.type,
-      label: source.label,
-      icon: source.icon || '📦',
+      type: source.data?.type || source.type,
+      label: source.data?.label || source.label,
+      icon,
     };
   };
 
@@ -45,13 +66,24 @@ export function WithExternalSourceExample() {
         {/* 左侧：拖拽源 */}
         <div style={{ width: 200 }}>
           <h3>组件库</h3>
-          <DndSortable
-            items={[]}
-            onItemsChange={() => {}}
-            renderItem={() => null}
-            dragSources={dragSources}
-            onDrop={handleDrop}
-          />
+          <DndSourceList sources={dragSources} />
+
+          <DndSource source={quickSource}>
+            {(dragProps) => (
+              <button
+                type="button"
+                {...dragProps}
+                style={{
+                  marginTop: 16,
+                  width: '100%',
+                  padding: '10px 12px',
+                  cursor: dragProps.draggable ? 'grab' : 'not-allowed',
+                }}
+              >
+                ⚡ 快速按钮
+              </button>
+            )}
+          </DndSource>
         </div>
 
         {/* 右侧：画布 */}
@@ -77,6 +109,7 @@ export function WithExternalSourceExample() {
                 <span>{item.label}</span>
               </div>
             )}
+            accepts={['text', 'image', 'button', 'divider']}
             onDrop={handleDrop}
           />
         </div>

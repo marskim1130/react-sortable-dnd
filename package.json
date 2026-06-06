@@ -1,11 +1,19 @@
 {
   "name": "@qiliangjin/react-sortable-dnd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "description": "零依赖、高性能的 React 拖拽排序组件库，支持容器内排序和外部拖入",
+  "homepage": "https://github.com/CodeApeKQ/react-sortable-dnd#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodeApeKQ/react-sortable-dnd.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CodeApeKQ/react-sortable-dnd/issues"
+  },
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -15,6 +23,7 @@
   "scripts": {
     "dev": "vite",
     "build": "rollup -c",
+    "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "prepublishOnly": "npm run build"
@@ -40,6 +49,8 @@
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.60.1",
@@ -48,6 +59,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
     "prettier": "^3.8.3",
     "react": "^19.2.7",
@@ -55,6 +67,7 @@
     "rollup": "^4.61.0",
     "rollup-plugin-postcss": "^4.0.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   }
 }

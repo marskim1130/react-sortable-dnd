@@ -1,10 +1,10 @@
-# react-sortable-dnd
+# @qiliangjin/react-sortable-dnd
 
 > 零依赖、高性能的 React 拖拽排序组件库，支持容器内排序和外部拖入
 
-[![npm version](https://img.shields.io/npm/v/react-sortable-dnd.svg)](https://www.npmjs.com/package/react-sortable-dnd)
-[![npm downloads](https://img.shields.io/npm/dm/react-sortable-dnd.svg)](https://www.npmjs.com/package/react-sortable-dnd)
-[![license](https://img.shields.io/npm/l/react-sortable-dnd.svg)](https://github.com/your-username/react-sortable-dnd/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/%40qiliangjin%2Freact-sortable-dnd.svg)](https://www.npmjs.com/package/@qiliangjin/react-sortable-dnd)
+[![npm downloads](https://img.shields.io/npm/dm/%40qiliangjin%2Freact-sortable-dnd.svg)](https://www.npmjs.com/package/@qiliangjin/react-sortable-dnd)
+[![license](https://img.shields.io/npm/l/%40qiliangjin%2Freact-sortable-dnd.svg)](https://github.com/CodeApeKQ/react-sortable-dnd/blob/main/LICENSE)
 
 ## ✨ 特性
 
@@ -21,13 +21,13 @@
 
 ```bash
 # npm
-npm install react-sortable-dnd
+npm install @qiliangjin/react-sortable-dnd
 
 # yarn
-yarn add react-sortable-dnd
+yarn add @qiliangjin/react-sortable-dnd
 
 # pnpm
-pnpm add react-sortable-dnd
+pnpm add @qiliangjin/react-sortable-dnd
 ```
 
 ## 🚀 快速开始
@@ -36,7 +36,7 @@ pnpm add react-sortable-dnd
 
 ```tsx
 import { useState } from 'react';
-import { DndSortable, DndHandle } from 'react-sortable-dnd';
+import { DndSortable, DndHandle } from '@qiliangjin/react-sortable-dnd';
 
 function App() {
   const [items, setItems] = useState([
@@ -64,33 +64,51 @@ function App() {
 
 ```tsx
 import { useState } from 'react';
-import { DndSortable, DragSource } from 'react-sortable-dnd';
+import { DndSortable, DndSourceList, DragSource } from '@qiliangjin/react-sortable-dnd';
 
 const dragSources: DragSource[] = [
-  { type: 'text', label: '文本框', icon: '📝' },
-  { type: 'image', label: '图片', icon: '🖼️' },
-  { type: 'button', label: '按钮', icon: '🔘' },
+  {
+    type: 'text',
+    label: '文本框',
+    icon: '📝',
+    data: { id: 'text', type: 'text', label: '文本框' },
+  },
+  {
+    type: 'image',
+    label: '图片',
+    icon: '🖼️',
+    data: { id: 'image', type: 'image', label: '图片' },
+  },
+  {
+    type: 'button',
+    label: '按钮',
+    icon: '🔘',
+    data: { id: 'button', type: 'button', label: '按钮' },
+  },
 ];
 
 function App() {
   const [items, setItems] = useState([]);
 
   const handleDrop = (source, index) => ({
-    id: Date.now().toString(),
-    type: source.type,
-    label: source.label,
+    ...source.data,
+    id: `${source.type}-${Date.now()}`,
   });
 
   return (
-    <DndSortable
-      items={items}
-      onItemsChange={setItems}
-      dragSources={dragSources}
-      onDrop={handleDrop}
-      renderItem={(item) => (
-        <div className="item">{item.label}</div>
-      )}
-    />
+    <>
+      <DndSourceList sources={dragSources} />
+
+      <DndSortable
+        items={items}
+        onItemsChange={setItems}
+        accepts={['text', 'image', 'button']}
+        onDrop={handleDrop}
+        renderItem={(item) => (
+          <div className="item">{item.label}</div>
+        )}
+      />
+    </>
   );
 }
 ```
@@ -104,11 +122,36 @@ function App() {
 | `items` | `DndItem[]` | - | 当前 items 列表 |
 | `onItemsChange` | `(items: DndItem[]) => void` | - | items 变化回调 |
 | `renderItem` | `(item: DndItem, index: number) => ReactNode` | - | 渲染单个 item |
-| `dragSources` | `DragSource[]` | - | 外部拖入源配置 |
+| `accepts` | `string[]` | - | 接收的外部拖入源类型；未设置时接受全部 |
 | `onDrop` | `(source: DragSource, index: number) => DndItem` | - | 外部拖入回调 |
+| `dragSources` | `DragSource[]` | - | 过渡接口，已弃用；请使用 `DndSource` 或 `DndSourceList` |
 | `disabled` | `boolean` | `false` | 是否禁用拖拽 |
 | `className` | `string` | - | 自定义类名 |
 | `style` | `React.CSSProperties` | - | 自定义样式 |
+
+### DndSource
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `source` | `DragSource` | - | 单个外部拖入源 |
+| `children` | `(dragProps: DndSourceDragProps) => ReactNode` | - | 自定义源触发器，需把 `dragProps` 附加到自己的 UI |
+| `disabled` | `boolean` | `false` | 是否禁用拖拽 |
+
+### DndSourceList
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `sources` | `DragSource[]` | - | 外部拖入源列表 |
+| `renderSource` | `(source, index, dragProps) => ReactNode` | - | 自定义渲染单个源；未设置时使用 `.dnd-drag-source` 默认 UI |
+| `disabled` | `boolean` | `false` | 是否禁用拖拽 |
+| `className` | `string` | - | 自定义类名 |
+| `style` | `React.CSSProperties` | - | 自定义样式 |
+
+### 迁移 dragSources
+
+`DndSortable.dragSources` 仍保留兼容，但它是过渡接口。新代码应使用 `DndSourceList` 或 `DndSource` 创建外部拖入源，让 **外部拖入源** 只负责发起拖拽，让 `DndSortable` 作为 **放置目标** 通过 `accepts` 决定接收哪些 `source.type`。
+
+旧 `dragSources` 会遵守同样的 `accepts` 与拒绝放置反馈：不被接收的源不会显示插入占位符，不会触发 `onDrop`，也不会改变 items。
 
 ### DndHandle
 
@@ -172,7 +215,7 @@ interface DragSource {
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/react-sortable-dnd.git
+git clone https://github.com/CodeApeKQ/react-sortable-dnd.git
 
 # 安装依赖
 cd react-sortable-dnd
@@ -197,9 +240,9 @@ npm run format
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request。开始前请阅读 [贡献指南](CONTRIBUTING.md)；重要变更会记录在 [CHANGELOG](CHANGELOG.md)。
 
 ## 📧 联系方式
 
 - 作者：金琦亮
-- 邮箱：your-email@example.com
+- 问题反馈：[GitHub Issues](https://github.com/CodeApeKQ/react-sortable-dnd/issues)

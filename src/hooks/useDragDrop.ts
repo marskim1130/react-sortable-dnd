@@ -1,11 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DndItem, DragSource, DragState } from '../types';
+import {
+  clearExternalDragSource,
+  parseDragData,
+  setExternalDragData,
+  setInternalDragData,
+} from '../dragData';
 
 export interface UseDragDropOptions<T extends DndItem> {
   /** 当前 items */
   items: T[];
   /** items 变化回调 */
   onItemsChange: (items: T[]) => void;
+  /** 接收的外部拖入源类型 */
+  accepts?: string[];
   /** 外部拖入回调 */
   onDrop?: (source: DragSource<T>, index: number) => T;
   /** 是否禁用 */
@@ -36,25 +44,10 @@ export interface UseDragDropReturn {
   };
 }
 
-/** 内部拖拽数据格式 */
-interface InternalDragData {
-  type: 'internal';
-  index: number;
-}
-
-/** 外部拖拽数据格式 */
-interface ExternalDragData {
-  type: 'external';
-  sourceType: string;
-}
-
-type DragData = InternalDragData | ExternalDragData;
-
-const DRAG_DATA_KEY = 'application/json';
-
 export function useDragDrop<T extends DndItem>({
   items,
   onItemsChange,
+  accepts,
   onDrop,
   disabled = false,
 }: UseDragDropOptions<T>): UseDragDropReturn {
@@ -74,6 +67,7 @@ export function useDragDrop<T extends DndItem>({
   const rafIdRef = useRef<number | null>(null);
   const pendingInsertIndexRef = useRef<number | null>(null);
   const domCacheRef = useRef<Map<Element, Element | null>>(new Map());
+  const externalDragSourceIdRef = useRef<string | null>(null);
 
   // 清理 RAF
   useEffect(() => {
@@ -81,6 +75,7 @@ export function useDragDrop<T extends DndItem>({
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
       }
+      clearExternalDragSource(externalDragSourceIdRef.current);
     };
   }, []);
 
@@ -131,35 +126,80 @@ export function useDragDrop<T extends DndItem>({
   );
 
   // 批量更新插入位置（使用 RAF 优化）
-  const updateInsertIndex = useCallback(
-    (index: number | null) => {
-      pendingInsertIndexRef.current = index;
+  const updateInsertIndex = useCallback((index: number | null) => {
+    pendingInsertIndexRef.current = index;
 
-      if (rafIdRef.current !== null) {
-        return;
-      }
+    if (rafIdRef.current !== null) {
+      return;
+    }
 
-      rafIdRef.current = requestAnimationFrame(() => {
-        rafIdRef.current = null;
-        setDragState((prev) => ({
-          ...prev,
-          insertIndex: pendingInsertIndexRef.current,
-        }));
-      });
-    },
-    []
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      setDragState((prev) => ({
+        ...prev,
+        insertIndex: pendingInsertIndexRef.current,
+      }));
+    });
+  }, []);
+
+  const acceptsExternalSource = useCallback(
+    (sourceType: string) => !accepts || accepts.includes(sourceType),
+    [accepts]
   );
 
-  // 解析拖拽数据
-  const parseDragData = useCallback((e: React.DragEvent): DragData | null => {
-    try {
-      const data = e.dataTransfer.types.includes(DRAG_DATA_KEY)
-        ? JSON.parse(e.dataTransfer.getData(DRAG_DATA_KEY))
-        : null;
-      return data;
-    } catch {
-      return null;
+  const showExternalDragFeedback = useCallback((sourceType: string) => {
+    setDragState((prev) => {
+      if (
+        prev.isDragging &&
+        prev.draggingIndex === null &&
+        prev.draggingSource === sourceType
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        isDragging: true,
+        draggingIndex: null,
+        draggingSource: sourceType,
+      };
+    });
+  }, []);
+
+  const hideExternalDragFeedback = useCallback(() => {
+    setDragState((prev) => {
+      if (prev.draggingIndex !== null || prev.draggingSource === null) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        isDragging: false,
+        draggingSource: null,
+        insertIndex: null,
+      };
+    });
+  }, []);
+
+  const resetDragInteraction = useCallback(() => {
+    isDraggingRef.current = false;
+    dragEnterCounterRef.current = 0;
+    lastValidInsertIndexRef.current = null;
+    pendingInsertIndexRef.current = null;
+    domCacheRef.current.clear();
+
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
     }
+
+    setDragState((prev) => ({
+      ...prev,
+      isDragging: false,
+      draggingIndex: null,
+      draggingSource: null,
+      insertIndex: null,
+    }));
   }, []);
 
   // 拖拽开始 - item
@@ -169,8 +209,7 @@ export function useDragDrop<T extends DndItem>({
 
       e.stopPropagation();
 
-      const dragData: InternalDragData = { type: 'internal', index };
-      e.dataTransfer.setData(DRAG_DATA_KEY, JSON.stringify(dragData));
+      setInternalDragData(e.dataTransfer, index);
       e.dataTransfer.effectAllowed = 'move';
 
       isDraggingRef.current = true;
@@ -193,6 +232,7 @@ export function useDragDrop<T extends DndItem>({
       isDraggingRef.current = false;
       dragEnterCounterRef.current = 0;
       lastValidInsertIndexRef.current = null;
+      pendingInsertIndexRef.current = null;
 
       // 触发回弹动画
       setDragState((prev) => {
@@ -227,14 +267,12 @@ export function useDragDrop<T extends DndItem>({
     (source: DragSource) => (e: React.DragEvent) => {
       if (disabled) return;
 
-      const dragData: ExternalDragData = {
-        type: 'external',
-        sourceType: source.type,
-      };
-      e.dataTransfer.setData(DRAG_DATA_KEY, JSON.stringify(dragData));
+      clearExternalDragSource(externalDragSourceIdRef.current);
+      externalDragSourceIdRef.current = setExternalDragData(
+        e.dataTransfer,
+        source
+      );
       e.dataTransfer.effectAllowed = 'copy';
-
-      isDraggingRef.current = true;
 
       setDragState((prev) => ({
         ...prev,
@@ -248,22 +286,30 @@ export function useDragDrop<T extends DndItem>({
 
   // 拖拽结束 - 源
   const handleSourceDragEnd = useCallback(() => {
-    isDraggingRef.current = false;
-    dragEnterCounterRef.current = 0;
-    lastValidInsertIndexRef.current = null;
-
-    setDragState((prev) => ({
-      ...prev,
-      isDragging: false,
-      draggingSource: null,
-      insertIndex: null,
-    }));
-  }, []);
+    clearExternalDragSource(externalDragSourceIdRef.current);
+    externalDragSourceIdRef.current = null;
+    resetDragInteraction();
+  }, [resetDragInteraction]);
 
   // 容器 - dragEnter
   const handleContainerDragEnter = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+
+      const dragData = parseDragData<T>(e.dataTransfer);
+      if (
+        dragData?.type === 'external' &&
+        !acceptsExternalSource(dragData.source.type)
+      ) {
+        updateInsertIndex(null);
+        hideExternalDragFeedback();
+        return;
+      }
+
+      if (dragData?.type === 'external') {
+        showExternalDragFeedback(dragData.source.type);
+      }
+
       dragEnterCounterRef.current++;
 
       if (dragEnterCounterRef.current === 1) {
@@ -271,7 +317,13 @@ export function useDragDrop<T extends DndItem>({
         updateInsertIndex(items.length);
       }
     },
-    [items.length, updateInsertIndex]
+    [
+      acceptsExternalSource,
+      hideExternalDragFeedback,
+      items.length,
+      showExternalDragFeedback,
+      updateInsertIndex,
+    ]
   );
 
   // 容器 - dragLeave
@@ -283,21 +335,48 @@ export function useDragDrop<T extends DndItem>({
       if (dragEnterCounterRef.current <= 0) {
         dragEnterCounterRef.current = 0;
         updateInsertIndex(null);
+
+        if (!isDraggingRef.current) {
+          hideExternalDragFeedback();
+        }
       }
     },
-    [updateInsertIndex]
+    [hideExternalDragFeedback, updateInsertIndex]
   );
 
   // 容器 - dragOver
   const handleContainerDragOver = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = isDraggingRef.current ? 'move' : 'copy';
+
+      const dragData = parseDragData<T>(e.dataTransfer);
+      if (
+        dragData?.type === 'external' &&
+        !acceptsExternalSource(dragData.source.type)
+      ) {
+        e.dataTransfer.dropEffect = 'none';
+        updateInsertIndex(null);
+        hideExternalDragFeedback();
+        return;
+      }
+
+      if (dragData?.type === 'external') {
+        e.dataTransfer.dropEffect = 'copy';
+        showExternalDragFeedback(dragData.source.type);
+      } else {
+        e.dataTransfer.dropEffect = isDraggingRef.current ? 'move' : 'copy';
+      }
 
       const insertIndex = calculateInsertIndex(e);
       updateInsertIndex(insertIndex);
     },
-    [calculateInsertIndex, updateInsertIndex]
+    [
+      acceptsExternalSource,
+      calculateInsertIndex,
+      hideExternalDragFeedback,
+      showExternalDragFeedback,
+      updateInsertIndex,
+    ]
   );
 
   // 容器 - drop
@@ -306,54 +385,66 @@ export function useDragDrop<T extends DndItem>({
       e.preventDefault();
       dragEnterCounterRef.current = 0;
 
-      const dragData = parseDragData(e);
+      const dragData = parseDragData<T>(e.dataTransfer);
+      const externalSourceId =
+        dragData?.type === 'external' ? dragData.sourceId : null;
       const insertIndex = pendingInsertIndexRef.current ?? items.length;
 
-      if (!dragData) {
-        setDragState((prev) => ({ ...prev, insertIndex: null }));
-        return;
-      }
-
-      if (dragData.type === 'internal') {
-        // 容器内重排序
-        const fromIndex = dragData.index;
-        if (fromIndex === insertIndex || fromIndex === insertIndex - 1) {
-          // 位置没变
-          setDragState((prev) => ({ ...prev, insertIndex: null }));
+      try {
+        if (!dragData) {
+          resetDragInteraction();
           return;
         }
 
-        const newItems = [...items];
-        const [movedItem] = newItems.splice(fromIndex, 1);
-        const toIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
-        newItems.splice(toIndex, 0, movedItem);
+        if (dragData.type === 'internal') {
+          // 容器内重排序
+          const fromIndex = dragData.index;
+          if (fromIndex === insertIndex || fromIndex === insertIndex - 1) {
+            // 位置没变
+            resetDragInteraction();
+            return;
+          }
 
-        onItemsChange(newItems);
-      } else if (dragData.type === 'external' && onDrop) {
-        // 外部拖入
-        const source = { type: dragData.sourceType } as DragSource<T>;
-        const newItem = onDrop(source, insertIndex);
+          const newItems = [...items];
+          const [movedItem] = newItems.splice(fromIndex, 1);
+          const toIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+          newItems.splice(toIndex, 0, movedItem);
 
-        const newItems = [...items];
-        newItems.splice(insertIndex, 0, newItem);
+          onItemsChange(newItems);
+        } else if (dragData.type === 'external') {
+          if (!acceptsExternalSource(dragData.source.type)) {
+            resetDragInteraction();
+            return;
+          }
 
-        onItemsChange(newItems);
+          // 外部拖入
+          const source = dragData.source as DragSource<T>;
+          const newItem = onDrop
+            ? onDrop(source, insertIndex)
+            : typeof source.data?.id === 'string'
+              ? (source.data as T)
+              : null;
+
+          if (!newItem) {
+            throw new Error(
+              'DndSortable external drop requires onDrop or source.data.id'
+            );
+          }
+
+          const newItems = [...items];
+          newItems.splice(insertIndex, 0, newItem);
+
+          onItemsChange(newItems);
+        }
+      } finally {
+        clearExternalDragSource(externalSourceId);
+        if (externalDragSourceIdRef.current === externalSourceId) {
+          externalDragSourceIdRef.current = null;
+        }
+        resetDragInteraction();
       }
-
-      // 清理状态
-      isDraggingRef.current = false;
-      lastValidInsertIndexRef.current = null;
-      domCacheRef.current.clear();
-
-      setDragState((prev) => ({
-        ...prev,
-        isDragging: false,
-        draggingIndex: null,
-        draggingSource: null,
-        insertIndex: null,
-      }));
     },
-    [items, onItemsChange, onDrop, parseDragData]
+    [acceptsExternalSource, items, onItemsChange, onDrop, resetDragInteraction]
   );
 
   // 获取 item 事件处理器
